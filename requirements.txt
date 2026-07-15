@@ -1,0 +1,27 @@
+# ABV-IIITM RAG chatbot — full dependency set.
+# Fresh device:  python -m venv .venv
+#                .venv\Scripts\activate      (Windows)   or   source .venv/bin/activate
+#                pip install -r requirements.txt
+# Tested on Windows, Python 3.10. Fully local/free stack — no torch.
+
+# stage 1 — crawl + download PDFs
+requests==2.34.2
+beautifulsoup4>=4.12
+
+# stage 2 — PDF -> Markdown (table-aware) + OCR for scanned PDFs
+pymupdf4llm==1.28.0
+pymupdf==1.28.0
+rapidocr-onnxruntime==1.4.4
+
+# stage 3 — recursive chunking + metadata
+langchain-text-splitters==1.1.2
+
+# stages 4-6 — embeddings, FAISS index, hybrid (BM25 + vector) search + rerank (ONNX, no torch)
+fastembed==0.8.0
+faiss-cpu==1.14.3
+rank-bm25==0.2.2
+numpy==2.2.6
+
+# stages 7-8 — cited answers (LLM) + Streamlit UI + .env config
+streamlit==1.59.2
+python-dotenv==1.2.2
