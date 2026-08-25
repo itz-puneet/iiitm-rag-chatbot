@@ -80,8 +80,8 @@ python build_faiss.py --query "credit requirements" --audience MTech --topic Cur
 python hybrid_search.py --query "rule 30.7" --rerank
 python hybrid_search.py --query "hostel refund" --mode bm25   # or vector / hybrid
 
-# stage 7: cited answers (needs a local LLM: `ollama pull llama3.2`, or an
-#          OpenAI-compatible endpoint via OPENAI_API_KEY + OPENAI_BASE_URL)
+# stage 7: cited answers (needs GEMINI_API_KEY in .env, or OpenAI-compatible
+#          endpoint via OPENAI_API_KEY + OPENAI_BASE_URL, or local `ollama pull llama3.2`)
 python answer.py --q "What is the hostel mess fee for M.Tech students?" --audience MTech
 ```
 

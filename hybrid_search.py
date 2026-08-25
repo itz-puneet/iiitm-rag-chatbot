@@ -54,6 +54,12 @@ class HybridRetriever:
         from fastembed import TextEmbedding
 
         store = Path(store)
+        if not (store / "index.faiss").exists() or not (store / "docstore.jsonl").exists():
+            raise FileNotFoundError(
+                f"FAISS vector store not found at '{store}'. "
+                "Please build the knowledge base first by following the steps in README.md "
+                "(download_pdfs.py -> extract_pdfs_local.py -> chunk_documents.py -> embed_chunks.py -> build_faiss.py)."
+            )
         self.index = faiss.read_index(str(store / "index.faiss"))
         self.docs = [json.loads(l) for l in open(store / "docstore.jsonl", encoding="utf-8") if l.strip()]
         cfg = json.loads((store / "config.json").read_text(encoding="utf-8"))
