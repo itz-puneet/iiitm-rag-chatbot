@@ -1,4 +1,4 @@
-"""
+-"""
 Crawl a college website, find every link ending in .pdf, and download them.
 
 Designed for building a RAG knowledge base from https://www.iiitm.ac.in
@@ -29,7 +29,7 @@ HEADERS = {
     )
 }
 
-DEFAULT_URL = "https://www.iiitm.ac.in/index.php/en/"
+DEFAULT_URL = "https://www.iiitm.ac.in/"
 
 
 def is_same_domain(url: str, root_netloc: str) -> bool:

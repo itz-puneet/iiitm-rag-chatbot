@@ -25,6 +25,7 @@ Usage:
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -55,14 +56,14 @@ def main() -> None:
     ap.add_argument("--model", default="BAAI/bge-small-en-v1.5")
     ap.add_argument("--out-emb", default="./embeddings.npy")
     ap.add_argument("--out-meta", default="./embeddings_meta.json")
-    ap.add_argument("--batch", type=int, default=128)
+    ap.add_argument("--batch", type=int, default=32, help="Batch size for embedding (default: 32 for lower RAM usage)")
+    ap.add_argument("--threads", type=int, default=None, help="Number of CPU threads for ONNX runtime (default: all available)")
     ap.add_argument("--query", default="", help="run a semantic-search demo instead of building")
     args = ap.parse_args()
 
     texts, metas = load_chunks(Path(args.in_file))
-    print(f"Loaded {len(texts)} chunks. Loading model {args.model} "
-          f"(first run downloads ~130MB from HuggingFace) ...")
-    model = TextEmbedding(model_name=args.model)
+    print(f"Loaded {len(texts)} chunks. Initializing model {args.model} (threads={args.threads})...", flush=True)
+    model = TextEmbedding(model_name=args.model, threads=args.threads)
 
     # ---- demo mode: search the existing index by meaning ----
     if args.query:
@@ -74,23 +75,38 @@ def main() -> None:
         qvec = l2_normalize(np.array(list(model.query_embed(args.query))[0]))
         scores = matrix @ qvec
         top = np.argsort(-scores)[:5]
-        print(f'\nTop 5 for: "{args.query}"\n' + "-" * 60)
+        print(f'\nTop 5 for: "{args.query}"\n' + "-" * 60, flush=True)
         for rank, i in enumerate(top, 1):
             m = metas[i]
             print(f"{rank}. score={scores[i]:.3f} | {m['source']} "
                   f"| audience={m['audience']} | topic={m['topic']}")
             print(f"   section: {m.get('section','')}")
-            print(f"   {texts[i][:220].replace(chr(10),' ')}\n")
+            print(f"   {texts[i][:220].replace(chr(10),' ')}\n", flush=True)
         return
 
-    # ---- build mode: embed every chunk ----
-    vectors = []
-    for i, vec in enumerate(model.embed(texts, batch_size=args.batch), start=1):
-        vectors.append(vec)
-        if i % 2000 == 0 or i == len(texts):
-            print(f"  embedded {i}/{len(texts)}")
+    # ---- build mode: embed every chunk with memory-safe preallocated buffer ----
+    total = len(texts)
+    print(f"Embedding {total} chunks in batches of {args.batch}...", flush=True)
 
-    embeddings = l2_normalize(np.array(vectors, dtype="float32"))
+    # Pre-allocate numpy array to avoid Python list overhead and memory fragmentation
+    embeddings_matrix = None
+
+    for i, vec in enumerate(model.embed(texts, batch_size=args.batch)):
+        if embeddings_matrix is None:
+            dim = len(vec)
+            embeddings_matrix = np.empty((total, dim), dtype=np.float32)
+
+        embeddings_matrix[i] = vec
+        if (i + 1) % 1000 == 0 or (i + 1) == total:
+            print(f"  embedded {i + 1}/{total} ({(i + 1) / total * 100:.1f}%)", flush=True)
+
+    if embeddings_matrix is None:
+        raise SystemExit("No chunks found to embed.")
+
+    print("Normalizing embeddings...", flush=True)
+    embeddings = l2_normalize(embeddings_matrix)
+    del embeddings_matrix  # free preallocated buffer
+
     np.save(args.out_emb, embeddings)
     Path(args.out_meta).write_text(json.dumps({
         "model": args.model,
@@ -101,8 +117,8 @@ def main() -> None:
         "note": "row i aligns with line i of the source jsonl",
     }, indent=2), encoding="utf-8")
     print(f"\nSaved {embeddings.shape[0]} vectors of dim {embeddings.shape[1]} "
-          f"-> {args.out_emb}  ({embeddings.nbytes/1024/1024:.1f} MB)")
-    print(f'Try:  python embed_chunks.py --query "how much is the M.Tech fee?"')
+          f"-> {args.out_emb}  ({embeddings.nbytes/1024/1024:.1f} MB)", flush=True)
+    print(f'Try:  python embed_chunks.py --query "how much is the M.Tech fee?"', flush=True)
 
 
 if __name__ == "__main__":

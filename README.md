@@ -67,7 +67,7 @@ Eight standalone stages — each stage's output feeds the next:
 | Embed / rerank | `fastembed` *(ONNX — no torch)* |
 | Vector index | `faiss-cpu` |
 | Keyword search | `rank-bm25` |
-| Answer LLM | Groq *(free tier)* or Ollama *(local)* |
+| Answer LLM | Google Gemini *(free tier)* · Groq *(free)* · Ollama *(local)* |
 | UI | `streamlit` |
 
 ## ⚡ Quickstart
@@ -80,7 +80,7 @@ python -m venv .venv
 .venv\Scripts\activate            # Windows   (macOS/Linux: source .venv/bin/activate)
 pip install -r requirements.txt
 
-cp .env.example .env              # then paste your free Groq key into .env
+cp .env.example .env              # then paste your free Gemini or Groq key into .env
 ```
 
 Build the knowledge base (once, in order), then launch the app:
@@ -112,10 +112,14 @@ python answer.py --q "What is the hostel mess fee for M.Tech students?" --audien
 ## ⚙️ Configuration (`.env`)
 
 ```ini
-# Option A — free hosted LLM (Groq, OpenAI-compatible)
-OPENAI_API_KEY=gsk_your_key
-OPENAI_BASE_URL=https://api.groq.com/openai/v1
-OPENAI_MODEL=llama-3.3-70b-versatile
+# Option 1 — Google Gemini API (Recommended, 100% free at https://aistudio.google.com/)
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
+
+# Option 2 — Free hosted LLM (Groq, OpenAI-compatible at https://console.groq.com/)
+# OPENAI_API_KEY=gsk_your_key
+# OPENAI_BASE_URL=https://api.groq.com/openai/v1
+# OPENAI_MODEL=llama-3.3-70b-versatile
 ```
 
 Or leave those unset and run a local model with [Ollama](https://ollama.com):

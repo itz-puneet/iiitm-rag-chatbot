@@ -52,8 +52,20 @@ def is_scanned(pdf_path: Path) -> bool:
 
 
 def extract_digital(pdf_path: Path) -> str:
-    """Text + tables -> Markdown via PyMuPDF4LLM."""
-    return pymupdf4llm.to_markdown(str(pdf_path), show_progress=False).strip()
+    """Text + tables -> Markdown via PyMuPDF4LLM, with fallback to standard text."""
+    try:
+        res = pymupdf4llm.to_markdown(str(pdf_path), show_progress=False)
+        if res:
+            return res.strip()
+    except Exception:
+        pass
+    
+    # Fallback to direct PyMuPDF text extraction
+    doc = pymupdf.open(pdf_path)
+    try:
+        return "\n\n".join(page.get_text() for page in doc).strip()
+    finally:
+        doc.close()
 
 
 def extract_ocr(pdf_path: Path, ocr: "RapidOCR", dpi: int) -> str:
