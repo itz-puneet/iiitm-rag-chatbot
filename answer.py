@@ -110,10 +110,18 @@ def generate(system: str, prompt: str, model: str = "", backend_choice: str = ""
                 "Gemini backend selected but neither GEMINI_API_KEY nor GOOGLE_API_KEY is set. "
                 "Get a free API key at https://aistudio.google.com/ and add GEMINI_API_KEY to your .env file."
             )
-        model = model or os.environ.get("GEMINI_MODEL") or "gemini-3.6-flash"
-        model_clean = model[7:] if model.startswith("models/") else model
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_clean}:generateContent"
+        # Build list of models to try in order of preference with automatic fallback
+        candidate_models = []
+        preferred_model = model or os.environ.get("GEMINI_MODEL")
+        if preferred_model:
+            candidate_models.append(preferred_model)
         
+        # Highly available fallback models
+        fallbacks = ["gemini-3.5-flash", "gemini-3.7-flash", "gemini-3.8-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"]
+        for fb in fallbacks:
+            if fb not in candidate_models and f"models/{fb}" not in candidate_models:
+                candidate_models.append(fb)
+
         headers = {
             "Content-Type": "application/json",
             "x-goog-api-key": key
@@ -133,16 +141,32 @@ def generate(system: str, prompt: str, model: str = "", backend_choice: str = ""
             payload["system_instruction"] = {
                 "parts": [{"text": system}]
             }
-            
-        resp = requests.post(url, headers=headers, json=payload, timeout=120)
-        _check(resp, f"Google Gemini API ({model_clean})")
-        data = resp.json()
-        try:
-            return data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError):
-            if "promptFeedback" in data and "blockReason" in data["promptFeedback"]:
-                raise RuntimeError(f"Gemini API blocked response: {data['promptFeedback']}")
-            raise RuntimeError(f"Unexpected response format from Gemini API: {data}")
+
+        last_error = None
+        for cand in candidate_models:
+            model_clean = cand[7:] if cand.startswith("models/") else cand
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_clean}:generateContent"
+            try:
+                resp = requests.post(url, headers=headers, json=payload, timeout=60)
+                if resp.status_code in (503, 429, 404):
+                    last_error = f"{model_clean} (HTTP {resp.status_code}: {resp.text[:150]})"
+                    continue
+                _check(resp, f"Google Gemini API ({model_clean})")
+                data = resp.json()
+                try:
+                    return data["candidates"][0]["content"]["parts"][0]["text"]
+                except (KeyError, IndexError):
+                    if "promptFeedback" in data and "blockReason" in data["promptFeedback"]:
+                        raise RuntimeError(f"Gemini API blocked response: {data['promptFeedback']}")
+                    raise RuntimeError(f"Unexpected response format from Gemini API: {data}")
+            except Exception as e:
+                last_error = str(e)
+                if any(err_code in str(e) for err_code in ["503", "429", "404", "high demand"]):
+                    continue
+                raise
+
+        raise RuntimeError(f"All Gemini models unavailable due to high demand. Last error: {last_error}")
+
 
     # 2. OpenAI-compatible endpoint (Groq, OpenRouter, local vLLM, etc.)
     if b == "openai":
