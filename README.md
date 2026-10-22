@@ -144,8 +144,9 @@ requirements.txt · .env.example
 - **Design constraint:** the whole stack stays free and local, deliberately avoiding
   `torch` (ONNX via `fastembed`). Only the final answer step optionally calls a hosted
   LLM (Groq's free tier).
-- **Data is not committed** — `pdfs/`, `extracted/`, `chunks.jsonl`, `embeddings.npy`,
-  and `faiss_store/` are large and reproducible; rebuild them with the pipeline above.
+- **What's committed:** `chunks.jsonl` and `faiss_store/` are committed so the Streamlit app
+  starts without a rebuild. `pdfs/`, `extracted/` and `embeddings.npy` aren't; rebuild them
+  with the pipeline above.
 - **Retrieval semantics:** `audience` is a *list* (use a contains filter), and
   `"General"` means institute-wide — a program query matches `audience ∈ {<program>, "General"}`.
 - Built for **ABV-IIITM Gwalior**, but adaptable to any institution by re-pointing the

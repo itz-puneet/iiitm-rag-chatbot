@@ -1,4 +1,4 @@
--"""
+"""
 Crawl a college website, find every link ending in .pdf, and download them.
 
 Designed for building a RAG knowledge base from https://www.iiitm.ac.in
